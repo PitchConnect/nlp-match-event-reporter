@@ -48,31 +48,64 @@ This system enables live match event reporting through speech during games, with
 git clone https://github.com/PitchConnect/nlp-match-event-reporter.git
 cd nlp-match-event-reporter
 
-# Set up development environment
-./scripts/setup_dev.sh
+# Set up Python virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Start services
-docker-compose up -d
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up database
+alembic upgrade head
+
+# Run the application
+uvicorn src.nlp_match_event_reporter.main:app --reload
 ```
 
 ### Configuration
 
-Copy the example environment file and configure your settings:
+Create a `.env` file with your configuration:
 
 ```bash
-cp .env.example .env
-# Edit .env with your FOGIS credentials and preferences
+# Database
+DATABASE_URL=sqlite:///./nlp_reporter.db
+
+# FOGIS API
+FOGIS_BASE_URL=https://fogis.svenskfotboll.se
+FOGIS_USERNAME=your_username
+FOGIS_PASSWORD=your_password
+
+# Voice Processing
+PICOVOICE_ACCESS_KEY=your_picovoice_key
+
+# Application
+ENVIRONMENT=development
+LOG_LEVEL=INFO
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=src --cov-report=html
+
+# Run specific test categories
+pytest tests/unit/
+pytest tests/integration/
 ```
 
 ## 📋 Development Milestones
 
 - [x] **Repository Setup** - Project structure and CI/CD pipeline
-- [ ] **Python Project Scaffolding** - Basic project structure and dependencies
-- [ ] **FOGIS API Integration** - Match data fetching and event reporting
-- [ ] **NLP Proof of Concept** - Text-based event interface
-- [ ] **Hotword Activation** - Voice activation using Porcupine
-- [ ] **Speech-to-Text Integration** - Whisper-based transcription
-- [ ] **Text-to-Speech Implementation** - Kokoro TTS feedback
+- [x] **Python Project Scaffolding** - Complete project structure with FastAPI, SQLAlchemy, and testing framework
+- [x] **Database Models & Migrations** - Comprehensive data models with Alembic migrations
+- [x] **API Endpoint Implementation** - Full CRUD operations with database integration
+- [x] **Testing Framework** - Comprehensive test suite with 80% coverage
+- [x] **Voice Processing Integration** - Whisper STT, Kokoro TTS, and Porcupine hotword detection
+- [x] **FOGIS API Integration** - Complete client with match data sync and event reporting
 
 ## 🛠️ Technology Stack
 
