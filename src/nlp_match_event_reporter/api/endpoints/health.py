@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends
 from loguru import logger
 
 from ...core.config import settings
+from ...core.database import DatabaseUtils
 
 router = APIRouter()
 
@@ -24,13 +25,16 @@ async def health_check() -> Dict[str, Any]:
 @router.get("/detailed")
 async def detailed_health_check() -> Dict[str, Any]:
     """Detailed health check with service status."""
+    # Check database connectivity
+    db_healthy = DatabaseUtils.check_connection()
+
     health_status = {
-        "status": "healthy",
+        "status": "healthy" if db_healthy else "degraded",
         "version": "0.1.0",
         "environment": settings.ENVIRONMENT,
         "services": {
             "api": "healthy",
-            "database": "unknown",  # Will be implemented with database service
+            "database": "healthy" if db_healthy else "unhealthy",
             "fogis_client": "unknown",  # Will be implemented with FOGIS integration
             "voice_processing": "unknown",  # Will be implemented with voice services
         },
@@ -41,8 +45,20 @@ async def detailed_health_check() -> Dict[str, Any]:
             "tts_engine": settings.TTS_ENGINE,
         }
     }
-    
-    logger.info("Health check requested")
+
+    # Add database info if healthy
+    if db_healthy:
+        try:
+            table_info = DatabaseUtils.get_table_info()
+            if "error" not in table_info:
+                health_status["database_info"] = {
+                    "total_tables": table_info["total_tables"],
+                    "tables": list(table_info["tables"].keys()),
+                }
+        except Exception as e:
+            logger.warning(f"Could not get database info: {e}")
+
+    logger.info("Detailed health check requested")
     return health_status
 
 

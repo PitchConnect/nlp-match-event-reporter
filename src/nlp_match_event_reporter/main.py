@@ -14,6 +14,7 @@ from .api.routes import api_router
 from .core.config import settings
 from .core.exceptions import NLPReporterError
 from .core.logging import setup_logging
+from .core.database import init_database, close_database
 
 
 @asynccontextmanager
@@ -22,14 +23,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     logger.info("Starting NLP Match Event Reporter")
     setup_logging()
-    
-    # Initialize services here if needed
+
+    # Initialize database
+    try:
+        init_database()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        raise
+
     logger.info("Application startup complete")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down NLP Match Event Reporter")
+    close_database()
 
 
 # Create FastAPI application
