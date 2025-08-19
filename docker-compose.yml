@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # Main API Service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: nlp-reporter-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/nlp_reporter
+      - FOGIS_USERNAME=${FOGIS_USERNAME}
+      - FOGIS_PASSWORD=${FOGIS_PASSWORD}
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+    volumes:
+      - ./logs:/app/logs
+      - ./models:/app/models
+    depends_on:
+      - db
+      - redis
+    networks:
+      - nlp-reporter-network
+    restart: unless-stopped
+
+  # Database Service
+  db:
+    image: postgres:15-alpine
+    container_name: nlp-reporter-db
+    environment:
+      - POSTGRES_DB=nlp_reporter
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - nlp-reporter-network
+    restart: unless-stopped
+
+  # Redis for Caching and Session Management
+  redis:
+    image: redis:7-alpine
+    container_name: nlp-reporter-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - nlp-reporter-network
+    restart: unless-stopped
+
+  # Speech-to-Text Service (Whisper)
+  whisper:
+    build:
+      context: .
+      dockerfile: Dockerfile.whisper
+    container_name: nlp-reporter-whisper
+    ports:
+      - "8001:8001"
+    environment:
+      - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-base}
+      - WHISPER_LANGUAGE=${WHISPER_LANGUAGE:-sv}
+    volumes:
+      - ./models/whisper:/app/models
+      - /tmp:/tmp
+    networks:
+      - nlp-reporter-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Text-to-Speech Service (Kokoro)
+  tts:
+    build:
+      context: .
+      dockerfile: Dockerfile.tts
+    container_name: nlp-reporter-tts
+    ports:
+      - "8002:8002"
+    environment:
+      - TTS_ENGINE=${TTS_ENGINE:-kokoro}
+      - TTS_VOICE=${TTS_VOICE:-default}
+    volumes:
+      - ./models/tts:/app/models
+      - /tmp:/tmp
+    networks:
+      - nlp-reporter-network
+    restart: unless-stopped
+
+  # Voice Activation Service (Porcupine)
+  hotword:
+    build:
+      context: .
+      dockerfile: Dockerfile.hotword
+    container_name: nlp-reporter-hotword
+    ports:
+      - "8003:8003"
+    environment:
+      - HOTWORD_SENSITIVITY=${HOTWORD_SENSITIVITY:-0.5}
+      - HOTWORD_MODEL_PATH=/app/models/porcupine
+    volumes:
+      - ./models/porcupine:/app/models/porcupine
+      - /dev/snd:/dev/snd
+    devices:
+      - /dev/snd:/dev/snd
+    networks:
+      - nlp-reporter-network
+    restart: unless-stopped
+    privileged: true
+
+  # FOGIS API Client Service
+  fogis-client:
+    image: ghcr.io/pitchconnect/fogis-api-client-python:latest
+    container_name: nlp-reporter-fogis
+    environment:
+      - FOGIS_USERNAME=${FOGIS_USERNAME}
+      - FOGIS_PASSWORD=${FOGIS_PASSWORD}
+    networks:
+      - nlp-reporter-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  nlp-reporter-network:
+    driver: bridge
