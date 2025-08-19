@@ -15,6 +15,7 @@ from .core.config import settings
 from .core.exceptions import NLPReporterError
 from .core.logging import setup_logging
 from .core.database import init_database, close_database
+from .services.voice_processing import initialize_voice_services, cleanup_voice_services
 
 
 @asynccontextmanager
@@ -32,12 +33,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.error(f"Failed to initialize database: {e}")
         raise
 
+    # Initialize voice processing services
+    try:
+        await initialize_voice_services()
+        logger.info("Voice processing services initialized successfully")
+    except Exception as e:
+        logger.warning(f"Voice services initialization failed (non-critical): {e}")
+        # Don't raise here as voice services are optional
+
     logger.info("Application startup complete")
 
     yield
 
     # Shutdown
     logger.info("Shutting down NLP Match Event Reporter")
+
+    # Cleanup voice services
+    try:
+        await cleanup_voice_services()
+        logger.info("Voice processing services cleaned up")
+    except Exception as e:
+        logger.warning(f"Error cleaning up voice services: {e}")
+
     close_database()
 
 
