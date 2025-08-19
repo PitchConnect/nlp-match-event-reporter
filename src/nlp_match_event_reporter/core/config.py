@@ -3,7 +3,8 @@ Configuration settings for NLP Match Event Reporter.
 """
 
 from typing import List, Optional
-from pydantic import BaseSettings, Field
+from pydantic import Field, ConfigDict
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -94,11 +95,11 @@ class Settings(BaseSettings):
     )
     CACHE_TTL_SECONDS: int = Field(default=300, env="CACHE_TTL_SECONDS")
     
-    class Config:
-        """Pydantic configuration."""
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+    )
 
 
 # Global settings instance

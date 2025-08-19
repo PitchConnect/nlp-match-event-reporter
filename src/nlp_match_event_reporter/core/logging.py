@@ -56,12 +56,7 @@ def setup_logging() -> None:
             serialize=settings.LOG_FORMAT == "json",
         )
     
-    # Filter sensitive information
-    logger.add(
-        lambda record: filter_sensitive_data(record),
-        level="TRACE",
-        format="",
-    )
+    # Note: Sensitive data filtering would be implemented here if needed
 
 
 def filter_sensitive_data(record: dict) -> bool:
