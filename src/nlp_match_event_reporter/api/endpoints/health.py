@@ -8,6 +8,7 @@ from loguru import logger
 
 from ...core.config import settings
 from ...core.database import DatabaseUtils
+from ...services.fogis_client import fogis_client
 
 router = APIRouter()
 
@@ -28,14 +29,23 @@ async def detailed_health_check() -> Dict[str, Any]:
     # Check database connectivity
     db_healthy = DatabaseUtils.check_connection()
 
+    # Check FOGIS connectivity
+    try:
+        fogis_healthy = await fogis_client.health_check()
+    except Exception:
+        fogis_healthy = False
+
+    # Determine overall health
+    overall_healthy = db_healthy and fogis_healthy
+
     health_status = {
-        "status": "healthy" if db_healthy else "degraded",
+        "status": "healthy" if overall_healthy else "degraded",
         "version": "0.1.0",
         "environment": settings.ENVIRONMENT,
         "services": {
             "api": "healthy",
             "database": "healthy" if db_healthy else "unhealthy",
-            "fogis_client": "unknown",  # Will be implemented with FOGIS integration
+            "fogis_client": "healthy" if fogis_healthy else "unhealthy",
             "voice_processing": "unknown",  # Will be implemented with voice services
         },
         "configuration": {

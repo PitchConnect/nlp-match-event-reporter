@@ -16,6 +16,7 @@ from .core.exceptions import NLPReporterError
 from .core.logging import setup_logging
 from .core.database import init_database, close_database
 from .services.voice_processing import initialize_voice_services, cleanup_voice_services
+from .services.fogis_client import initialize_fogis_client, cleanup_fogis_client
 
 
 @asynccontextmanager
@@ -41,6 +42,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning(f"Voice services initialization failed (non-critical): {e}")
         # Don't raise here as voice services are optional
 
+    # Initialize FOGIS client
+    try:
+        await initialize_fogis_client()
+        logger.info("FOGIS client initialized successfully")
+    except Exception as e:
+        logger.warning(f"FOGIS client initialization failed (non-critical): {e}")
+        # Don't raise here as FOGIS client is optional
+
     logger.info("Application startup complete")
 
     yield
@@ -54,6 +63,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Voice processing services cleaned up")
     except Exception as e:
         logger.warning(f"Error cleaning up voice services: {e}")
+
+    # Cleanup FOGIS client
+    try:
+        await cleanup_fogis_client()
+        logger.info("FOGIS client cleaned up")
+    except Exception as e:
+        logger.warning(f"Error cleaning up FOGIS client: {e}")
 
     close_database()
 
